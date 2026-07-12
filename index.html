@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>我的 AI 工具箱</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        /* 自動適應 Telegram 的黑夜/白天模式 */
+        body {
+            background-color: var(--tg-theme-bg-color, #f4f4f4);
+            color: var(--tg-theme-text-color, #000000);
+            font-family: sans-serif;
+            padding: 20px;
+            text-align: center;
+        }
+        textarea {
+            width: 100%;
+            height: 120px;
+            margin-top: 10px;
+            padding: 10px;
+            box-sizing: border-box;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+        button {
+            background-color: var(--tg-theme-button-color, #3390ec);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <h2>🤖 告訴 AI 你想分析什麼</h2>
+    <textarea id="userInput" placeholder="請輸入你要分析的文字..."></textarea>
+    <button onclick="sendToBot()">傳送給機器人</button>
+
+    <script>
+        // 初始化 Telegram Web App SDK
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand(); // 讓網頁一打開就全螢幕展開
+
+        function sendToBot() {
+            const text = document.getElementById('userInput').value;
+            if (text.trim() === "") {
+                alert("請先輸入一點內容哦！");
+                return;
+            }
+            // 關鍵：把輸入框的資料傳回給 Python Bot
+            tg.sendData(text);
+            // 傳送後自動關閉網頁，回到聊天視窗
+            tg.close();
+        }
+    </script>
+</body>
+</html>
