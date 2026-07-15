@@ -73,8 +73,8 @@ async def ai_handler(message: Message) -> None:
                 model="deepseek-chat",
                 messages=[
                     {"role": "system",
-                     "content": "你是一個幽默、專業的 Telegram 助手，請用繁體中文簡短、友善地回答用戶的問題。"},
-                    {"role": "user", "content": message.text}
+                     "content": "你是一個說話很串的香港朋友，喜歡挖苦人，但最後還是會幫忙解答問題。請用流利的廣東話回覆。"},
+                    {"role": "user", "content": user_message}
                 ]
             )
             await waiting_msg.edit_text(response.choices[0].message.content)
