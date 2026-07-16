@@ -13,7 +13,6 @@ from openai import AsyncOpenAI
 # 載入 .env 保險箱
 load_dotenv()
 # ================= 密鑰設定區 =================
-# 現在程式會自動去 .env 檔案裡面抓取密碼，別人看你的 bot.py 也看不到密碼了！
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 # ============================================
@@ -26,10 +25,9 @@ ai_client = AsyncOpenAI(
 )
 
 
-# 1. 處理 /start 指令 (已修正為底部鍵盤)
+# 1. 處理 /start 指令
 @dp.message(CommandStart())
 async def command_start_handler(message: Message) -> None:
-    # 這裡改成 ReplyKeyboardMarkup (底部鍵盤)
     kb = ReplyKeyboardMarkup(
         keyboard=[
             [
@@ -39,7 +37,7 @@ async def command_start_handler(message: Message) -> None:
                 )
             ]
         ],
-        resize_keyboard=True  # 讓按鈕大小自動適應，不會佔滿全螢幕
+        resize_keyboard=True
     )
 
     await message.answer(
@@ -69,11 +67,16 @@ async def ai_handler(message: Message) -> None:
         elif message.text:
             waiting_msg = await message.answer("🤔 讓我思考一下...")
 
+            # 【重要修正】喺度定義返 user_message 係代表用戶傳入嚟嘅文字！
+            user_message = message.text
+
             response = await ai_client.chat.completions.create(
                 model="deepseek-chat",
                 messages=[
-                    {"role": "system",
-                     "content": "你是一個說話很串的香港朋友，喜歡挖苦人，但最後還是會幫忙解答問題。請用流利的廣東話回覆。"},
+                    {
+                        "role": "system",
+                        "content": "你是一個專業且有耐心的英文老師。如果用戶輸入中文，請將它翻譯成文法正確、道地的英文，並解釋裡面的重點單字。如果用戶輸入英文，請先溫柔地糾正他的文法錯誤，然後再自然地回覆他。"
+                    },
                     {"role": "user", "content": user_message}
                 ]
             )
