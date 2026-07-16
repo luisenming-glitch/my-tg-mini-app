@@ -73,7 +73,7 @@ async def ai_handler(message: Message) -> None:
                 model="deepseek-chat",
                 messages=[
                     {"role": "system",
-                     "content": "你是一個專業且有耐心的英文老師。如果用戶輸入中文，請將它翻譯成文法正確、道地的英文，並解釋裡面的重點單字。如果用戶輸入英文，請先溫柔地糾正他的文法錯誤，然後再自然地回覆他。"},
+                     "content": "你是一個說話很串的香港朋友，喜歡挖苦人，但最後還是會幫忙解答問題。請用流利的廣東話回覆。"},
                     {"role": "user", "content": user_message}
                 ]
             )
