@@ -3,95 +3,73 @@ import logging
 import sys
 import os
 from dotenv import load_dotenv
-from aiogram import Bot, Dispatcher, html
+from aiogram import Bot, Dispatcher, html, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.filters import CommandStart
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
+from aiogram.filters import Command, CommandStart
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from openai import AsyncOpenAI
 
-# 載入 .env 保險箱
 load_dotenv()
-# ================= 密鑰設定區 =================
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
-# ============================================
 
 dp = Dispatcher()
+ai_client = AsyncOpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
 
-ai_client = AsyncOpenAI(
-    api_key=DEEPSEEK_API_KEY,
-    base_url="https://api.deepseek.com"
-)
+# 記憶庫：用嚟記住每個用戶想用邊個人設
+user_personalities = {}
 
-
-# 1. 處理 /start 指令
-@dp.message(CommandStart())
-async def command_start_handler(message: Message) -> None:
-    kb = ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                KeyboardButton(
-                    text="打開 AI 工具箱",
-                    web_app=WebAppInfo(url="https://luisenming-glitch.github.io/my-tg-mini-app/")
-                )
-            ]
-        ],
-        resize_keyboard=True
-    )
-
-    await message.answer(
-        f"嗨，{html.bold(message.from_user.full_name)}！\n"
-        f"看你的畫面最下方 👇\n"
-        f"請點擊底部的「打開 AI 工具箱」按鈕來啟動網頁：",
-        reply_markup=kb
-    )
+# 定義人設內容
+PERSONALITIES = {
+    "teacher": "你是一個專業英文老師，會糾正用戶語法。",
+    "sassy": "你是一個說話很串的香港朋友，喜歡挖苦人，但最後還是會幫忙。",
+    "cat": "你是一隻可愛的貓咪，說話結尾都要加上「喵～」。"
+}
 
 
-# 2. 處理對話與網頁傳來的資料
-@dp.message()
-async def ai_handler(message: Message) -> None:
+# 顯示切換按鈕
+@dp.message(Command("switch"))
+async def cmd_switch(message: Message):
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👨‍🏫 英文老師", callback_data="teacher")],
+        [InlineKeyboardButton(text="🤬 寸嘴朋友", callback_data="sassy")],
+        [InlineKeyboardButton(text="🐱 貓咪", callback_data="cat")]
+    ])
+    await message.answer("請選擇你的 AI 好友風格：", reply_markup=kb)
+
+
+# 處理按鈕點擊
+@dp.callback_query()
+async def callback_handler(callback: CallbackQuery):
+    user_personalities[callback.from_user.id] = PERSONALITIES[callback.data]
+    await callback.message.edit_text(f"已切換至：{callback.data} 模式！可以開始傾偈啦。")
+
+
+# 對話處理
+@dp.message(F.text)
+async def ai_handler(message: Message):
+    # 預設人設
+    system_prompt = user_personalities.get(message.from_user.id, "你是一個有用的 AI 助手。")
+
+    waiting_msg = await message.answer("🤔 思考中...")
     try:
-        # 情況 A：如果訊息是從 Web App (網頁) 傳送過來的資料
-        if message.web_app_data:
-            data = message.web_app_data.data
-            waiting_msg = await message.answer("🤖 網頁資料已接收，正在為您進行 AI 分析...")
-
-            response = await ai_client.chat.completions.create(
-                model="deepseek-chat",
-                messages=[{"role": "user", "content": f"請幫我分析以下內容：\n{data}"}]
-            )
-            await waiting_msg.edit_text(response.choices[0].message.content)
-
-        # 情況 B：如果是用戶在 Telegram 直接打字的普通對話
-        elif message.text:
-            waiting_msg = await message.answer("🤔 讓我思考一下...")
-
-            # 【重要修正】喺度定義返 user_message 係代表用戶傳入嚟嘅文字！
-            user_message = message.text
-
-            response = await ai_client.chat.completions.create(
-                model="deepseek-chat",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "你是一個專業且有耐心的英文老師。如果用戶輸入中文，請將它翻譯成文法正確、道地的英文，並解釋裡面的重點單字。如果用戶輸入英文，請先溫柔地糾正他的文法錯誤，然後再自然地回覆他。"
-                    },
-                    {"role": "user", "content": user_message}
-                ]
-            )
-            await waiting_msg.edit_text(response.choices[0].message.content)
-
+        response = await ai_client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": message.text}
+            ]
+        )
+        await waiting_msg.edit_text(response.choices[0].message.content)
     except Exception as e:
-        await message.answer(f"哎呀，我的腦袋當機了：\n{e}")
+        await waiting_msg.edit_text(f"當機了: {e}")
 
 
 async def main() -> None:
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    print("🚀 DeepSeek AI 機器人已啟動... 按 Ctrl+C 可以停止。")
     await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     asyncio.run(main())
